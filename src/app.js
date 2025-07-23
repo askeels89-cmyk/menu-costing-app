@@ -9,17 +9,17 @@ const MenuCostingModule = () => {
     try {
       const saved = localStorage.getItem('menu-costing-ingredients');
       return saved ? JSON.parse(saved) : [
-        { id: 1, name: 'Chicken Breast', unit: 'kg', cost: 8.50, category: 'Protein' },
-        { id: 2, name: 'Tomatoes', unit: 'kg', cost: 3.20, category: 'Vegetables' },
-        { id: 3, name: 'Milk', unit: 'L', cost: 1.30, category: 'Dairy' },
-        { id: 4, name: 'Rice', unit: 'kg', cost: 2.10, category: 'Grains' },
+        { id: 1, name: 'Chicken Breast', unit: 'kg', cost: 8.50, category: 'Protein', portionsPerUnit: 8 },
+        { id: 2, name: 'Tomatoes', unit: 'kg', cost: 3.20, category: 'Vegetables', portionsPerUnit: 10 },
+        { id: 3, name: 'Milk', unit: 'L', cost: 1.30, category: 'Dairy', portionsPerUnit: 8 },
+        { id: 4, name: 'Rice', unit: 'kg', cost: 2.10, category: 'Grains', portionsPerUnit: 20 },
       ];
     } catch (e) {
       return [
-        { id: 1, name: 'Chicken Breast', unit: 'kg', cost: 8.50, category: 'Protein' },
-        { id: 2, name: 'Tomatoes', unit: 'kg', cost: 3.20, category: 'Vegetables' },
-        { id: 3, name: 'Milk', unit: 'L', cost: 1.30, category: 'Dairy' },
-        { id: 4, name: 'Rice', unit: 'kg', cost: 2.10, category: 'Grains' },
+        { id: 1, name: 'Chicken Breast', unit: 'kg', cost: 8.50, category: 'Protein', portionsPerUnit: 8 },
+        { id: 2, name: 'Tomatoes', unit: 'kg', cost: 3.20, category: 'Vegetables', portionsPerUnit: 10 },
+        { id: 3, name: 'Milk', unit: 'L', cost: 1.30, category: 'Dairy', portionsPerUnit: 8 },
+        { id: 4, name: 'Rice', unit: 'kg', cost: 2.10, category: 'Grains', portionsPerUnit: 20 },
       ];
     }
   });
@@ -29,7 +29,8 @@ const MenuCostingModule = () => {
     name: '',
     unit: 'kg',
     cost: '',
-    category: 'Protein'
+    category: 'Protein',
+    portionsPerUnit: ''
   });
 
   // Recipe builder state
@@ -78,21 +79,27 @@ const MenuCostingModule = () => {
 
   // Ingredient CRUD operations
   const addIngredient = () => {
-    if (newIngredient.name && newIngredient.cost) {
+    if (newIngredient.name && newIngredient.cost && newIngredient.portionsPerUnit) {
       const ingredient = {
         id: Date.now(),
         ...newIngredient,
-        cost: parseFloat(newIngredient.cost)
+        cost: parseFloat(newIngredient.cost),
+        portionsPerUnit: parseFloat(newIngredient.portionsPerUnit)
       };
       setIngredients([...ingredients, ingredient]);
-      setNewIngredient({ name: '', unit: 'kg', cost: '', category: 'Protein' });
+      setNewIngredient({ name: '', unit: 'kg', cost: '', category: 'Protein', portionsPerUnit: '' });
       setShowAddForm(false);
     }
   };
 
   const updateIngredient = (id, updatedData) => {
     setIngredients(ingredients.map(ing => 
-      ing.id === id ? { ...ing, ...updatedData, cost: parseFloat(updatedData.cost) } : ing
+      ing.id === id ? { 
+        ...ing, 
+        ...updatedData, 
+        cost: parseFloat(updatedData.cost),
+        portionsPerUnit: parseFloat(updatedData.portionsPerUnit)
+      } : ing
     ));
     setEditingIngredient(null);
   };
@@ -127,7 +134,9 @@ const MenuCostingModule = () => {
     const ingredientCost = selectedIngredients.reduce((total, si) => {
       const ingredient = ingredients.find(ing => ing.id === parseInt(si.ingredientId));
       if (ingredient && si.quantity) {
-        return total + (ingredient.cost * parseFloat(si.quantity));
+        // Calculate cost per portion, then multiply by quantity of portions needed
+        const costPerPortion = ingredient.portionsPerUnit ? (ingredient.cost / ingredient.portionsPerUnit) : ingredient.cost;
+        return total + (costPerPortion * parseFloat(si.quantity));
       }
       return total;
     }, 0);
@@ -196,7 +205,7 @@ const MenuCostingModule = () => {
 
   // CSV download template
   const downloadCSVTemplate = () => {
-    const csvContent = "Ingredient Name,Unit of Measurement,Cost per Unit,Category\nChicken Breast,kg,8.50,Protein\nTomatoes,kg,3.20,Vegetables";
+    const csvContent = "Ingredient Name,Unit of Measurement,Cost per Unit,Category,Portions per Unit\nChicken Breast,kg,8.50,Protein,8\nTomatoes,kg,3.20,Vegetables,10\nMilk,L,1.30,Dairy,8\nRice,kg,2.10,Grains,20";
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -769,7 +778,7 @@ const MenuCostingModule = () => {
                   <input
                     type="number"
                     step="0.01"
-                    placeholder="Cost (£)"
+                    placeholder="Cost per unit (£)"
                     value={editingIngredient ? editingIngredient.cost : newIngredient.cost}
                     onChange={(e) => editingIngredient
                       ? setEditingIngredient({...editingIngredient, cost: e.target.value})
@@ -779,18 +788,32 @@ const MenuCostingModule = () => {
                   />
                 </div>
                 
-                <select
-                  value={editingIngredient ? editingIngredient.category : newIngredient.category}
-                  onChange={(e) => editingIngredient
-                    ? setEditingIngredient({...editingIngredient, category: e.target.value})
-                    : setNewIngredient({...newIngredient, category: e.target.value})
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
-                >
-                  {ingredientCategories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <select
+                    value={editingIngredient ? editingIngredient.category : newIngredient.category}
+                    onChange={(e) => editingIngredient
+                      ? setEditingIngredient({...editingIngredient, category: e.target.value})
+                      : setNewIngredient({...newIngredient, category: e.target.value})
+                    }
+                    className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                  >
+                    {ingredientCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="Portions per unit"
+                    value={editingIngredient ? editingIngredient.portionsPerUnit : newIngredient.portionsPerUnit}
+                    onChange={(e) => editingIngredient
+                      ? setEditingIngredient({...editingIngredient, portionsPerUnit: e.target.value})
+                      : setNewIngredient({...newIngredient, portionsPerUnit: e.target.value})
+                    }
+                    className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                  />
+                </div>
                 
                 <div className="flex space-x-2">
                   <button
@@ -798,7 +821,11 @@ const MenuCostingModule = () => {
                       ? () => updateIngredient(editingIngredient.id, editingIngredient)
                       : addIngredient
                     }
-                    className="flex-1 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium transition-colors"
+                    disabled={editingIngredient 
+                      ? !editingIngredient.name || !editingIngredient.cost || !editingIngredient.portionsPerUnit
+                      : !newIngredient.name || !newIngredient.cost || !newIngredient.portionsPerUnit
+                    }
+                    className="flex-1 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
                     {editingIngredient ? 'Update' : 'Add'} Ingredient
                   </button>
@@ -818,36 +845,48 @@ const MenuCostingModule = () => {
 
             {/* Ingredients List */}
             <div className="space-y-3">
-              {ingredients.map(ingredient => (
-                <div key={ingredient.id} className="bg-white rounded-lg shadow-sm p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-800 truncate">{ingredient.name}</h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        £{ingredient.cost.toFixed(2)} per {ingredient.unit}
-                      </p>
-                      <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mt-2">
-                        {ingredient.category}
-                      </span>
-                    </div>
-                    
-                    <div className="flex space-x-2 ml-3">
-                      <button
-                        onClick={() => setEditingIngredient(ingredient)}
-                        className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        onClick={() => deleteIngredient(ingredient.id)}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+              {ingredients.map(ingredient => {
+                const costPerPortion = ingredient.portionsPerUnit ? (ingredient.cost / ingredient.portionsPerUnit) : 0;
+                
+                return (
+                  <div key={ingredient.id} className="bg-white rounded-lg shadow-sm p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-800 truncate">{ingredient.name}</h3>
+                        <div className="text-sm text-gray-600 mt-1 space-y-1">
+                          <p>£{ingredient.cost.toFixed(2)} per {ingredient.unit}</p>
+                          {ingredient.portionsPerUnit && (
+                            <>
+                              <p>{ingredient.portionsPerUnit} portions per {ingredient.unit}</p>
+                              <p className="font-semibold text-blue-600">
+                                £{costPerPortion.toFixed(2)} per portion
+                              </p>
+                            </>
+                          )}
+                        </div>
+                        <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mt-2">
+                          {ingredient.category}
+                        </span>
+                      </div>
+                      
+                      <div className="flex space-x-2 ml-3">
+                        <button
+                          onClick={() => setEditingIngredient(ingredient)}
+                          className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => deleteIngredient(ingredient.id)}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -906,11 +945,14 @@ const MenuCostingModule = () => {
                         className="w-full p-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">Select ingredient...</option>
-                        {ingredients.map(ing => (
-                          <option key={ing.id} value={ing.id}>
-                            {ing.name} (£{ing.cost.toFixed(2)}/{ing.unit})
-                          </option>
-                        ))}
+                        {ingredients.map(ing => {
+                          const costPerPortion = ing.portionsPerUnit ? (ing.cost / ing.portionsPerUnit) : ing.cost;
+                          return (
+                            <option key={ing.id} value={ing.id}>
+                              {ing.name} (£{costPerPortion.toFixed(2)}/portion)
+                            </option>
+                          );
+                        })}
                       </select>
                       
                       <div className="flex items-center space-x-2">
