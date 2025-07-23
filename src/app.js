@@ -174,11 +174,14 @@ const MenuCostingModule = () => {
         category: recipeCategory,
         ingredients: selectedIngredients.map(si => {
           const ingredient = ingredients.find(ing => ing.id === parseInt(si.ingredientId));
+          const costPerPortion = ingredient && ingredient.portionsPerUnit ? (ingredient.cost / ingredient.portionsPerUnit) : (ingredient?.cost || 0);
           return {
             ...si,
             ingredientName: ingredient?.name,
-            ingredientCost: ingredient?.cost,
-            totalCost: ingredient ? ingredient.cost * parseFloat(si.quantity || 0) : 0
+            ingredientCost: costPerPortion,
+            ingredientUnit: ingredient?.unit,
+            portionsPerUnit: ingredient?.portionsPerUnit,
+            totalCost: ingredient ? costPerPortion * parseFloat(si.quantity || 0) : 0
           };
         }),
         costs: costs,
@@ -397,8 +400,8 @@ const MenuCostingModule = () => {
             <thead>
               <tr>
                 <th>Ingredient</th>
-                <th>Quantity</th>
-                <th>Unit Cost</th>
+                <th>Portions</th>
+                <th>Cost per Portion</th>
                 <th>Total Cost</th>
               </tr>
             </thead>
@@ -1092,11 +1095,12 @@ const MenuCostingModule = () => {
                             category: recipeCategory,
                             ingredients: selectedIngredients.map(si => {
                               const ingredient = ingredients.find(ing => ing.id === parseInt(si.ingredientId));
+                              const costPerPortion = ingredient && ingredient.portionsPerUnit ? (ingredient.cost / ingredient.portionsPerUnit) : (ingredient?.cost || 0);
                               return {
                                 ...si,
                                 ingredientName: ingredient?.name,
-                                ingredientCost: ingredient?.cost,
-                                totalCost: ingredient ? ingredient.cost * parseFloat(si.quantity || 0) : 0
+                                ingredientCost: costPerPortion,
+                                totalCost: ingredient ? costPerPortion * parseFloat(si.quantity || 0) : 0
                               };
                             }),
                             costs: costs,
