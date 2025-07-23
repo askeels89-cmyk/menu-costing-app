@@ -8,7 +8,15 @@ const MenuCostingModule = () => {
   const [ingredients, setIngredients] = useState(() => {
     try {
       const saved = localStorage.getItem('menu-costing-ingredients');
-      return saved ? JSON.parse(saved) : [
+      if (saved) {
+        const parsedIngredients = JSON.parse(saved);
+        // Migration: add portionsPerUnit to existing ingredients if missing
+        return parsedIngredients.map(ing => ({
+          ...ing,
+          portionsPerUnit: ing.portionsPerUnit || 1 // Default to 1 if missing
+        }));
+      }
+      return [
         { id: 1, name: 'Chicken Breast', unit: 'kg', cost: 8.50, category: 'Protein', portionsPerUnit: 8 },
         { id: 2, name: 'Tomatoes', unit: 'kg', cost: 3.20, category: 'Vegetables', portionsPerUnit: 10 },
         { id: 3, name: 'Milk', unit: 'L', cost: 1.30, category: 'Dairy', portionsPerUnit: 8 },
